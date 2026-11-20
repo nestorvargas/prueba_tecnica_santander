@@ -1,0 +1,45 @@
+### Peticiones para el HTTP Client de IntelliJ (también sirven con la extensión REST Client de VS Code).
+### Ejecutar primero el login: guarda el token y las demás lo usan.
+
+### Ping (público)
+GET http://localhost:8080/api/ping
+
+### Login: guarda el token en la variable global "token"
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "usuario": "admin",
+  "clave": "admin123"
+}
+
+> {%
+    client.test("Login correcto", () => client.assert(response.status === 200, "status " + response.status));
+    client.global.set("token", response.body.token);
+%}
+
+### Usuario del token (protegido)
+GET http://localhost:8080/api/auth/me
+Authorization: Bearer {{token}}
+
+### Login con clave incorrecta: 401
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "usuario": "admin",
+  "clave": "incorrecta"
+}
+
+### Sin token: 401
+GET http://localhost:8080/api/auth/me
+
+### Salud de la aplicación (público)
+GET http://localhost:8080/actuator/health
+
+### Información de la aplicación (protegido)
+GET http://localhost:8080/actuator/info
+Authorization: Bearer {{token}}
+
+### Especificación OpenAPI (público)
+GET http://localhost:8080/v3/api-docs

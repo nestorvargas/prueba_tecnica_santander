@@ -21,7 +21,30 @@ mvn spring-boot:run
 
 Con `spring-boot-devtools` la aplicación se reinicia sola al recompilar desde el IDE.
 
-En IntelliJ: clic derecho en `pom.xml` → *Add as Maven Project*, y ejecutar `BaseApiApplication`.
+En IntelliJ hay que abrirlo como proyecto Maven (*File → Open* sobre la carpeta o el `pom.xml`) y ejecutar `BaseApiApplication`. Si el IDE marca errores como `Cannot resolve symbol 'springframework'` o `Package name ... does not correspond to the file path 'main.java...'`, el proyecto quedó como Java plano: clic derecho en `pom.xml` → *Add as Maven Project*.
+
+## IntelliJ IDEA
+
+El proyecto trae configuración compartida para IntelliJ (funciona también en la versión gratuita):
+
+| Archivo | Qué hace |
+|---------|----------|
+| `.run/BaseApiApplication.run.xml` | Arranca la aplicación; antes levanta PostgreSQL con `docker compose` |
+| `.run/Postgres (docker compose).run.xml` | Solo levanta la base de datos |
+| `.run/Tests (mvn test).run.xml` | Ejecuta todos los tests con Maven |
+| `http/api.http` | Peticiones para el HTTP Client: login (guarda el token), `/me`, errores 401, actuator, OpenAPI |
+| `.editorconfig` | UTF-8, LF, 4 espacios en Java y 2 en YAML/JSON |
+
+Extensiones recomendadas (gratuitas):
+
+| Extensión | Para qué |
+|-----------|----------|
+| Spring Boot Assistant | Autocompletado y documentación de `application.yml` |
+| Database Navigator | Explorar y consultar PostgreSQL (`localhost:5436`, base/usuario/clave `base`) |
+| SonarQube for IDE | Detecta bugs y malas prácticas mientras se escribe |
+| HTTP Client | Ejecutar `http/api.http` |
+
+Para lanzar tests desde el editor (icono junto a la clase) con Colima, la plantilla de ejecución de JUnit necesita la variable `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` (*Run → Edit Configurations → Edit configuration templates → JUnit*), la misma que el `pom.xml` define para Maven.
 
 ## Endpoints
 
@@ -154,12 +177,7 @@ Testcontainers busca Docker en `/var/run/docker.sock`. Con Colima el socket est�
 docker.host=unix:///Users/<usuario>/.colima/default/docker.sock
 ```
 
-o con variables de entorno:
-
-```bash
-export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock"
-export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
-```
+El `pom.xml` ya define `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` para los tests. Es la ruta del socket dentro de la VM de Docker, la que necesita Ryuk (el contenedor que limpia lo que deja Testcontainers), y sirve igual en Colima, Docker Desktop y Linux.
 
 El `pom.xml` fija Testcontainers en 1.21.4 porque la 1.21.3 que trae Spring Boot 3.5.6 no funciona con Docker 29 (`client version 1.32 is too old`).
 
