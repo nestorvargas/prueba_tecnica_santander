@@ -15,10 +15,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import com.santander.base.dto.LoginRequest;
 import com.santander.base.dto.TokenResponse;
 import com.santander.base.service.JwtService;
 
+@Tag(name = "Autenticación")
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -31,6 +36,8 @@ public class AuthController {
         this.jwtService = jwtService;
     }
 
+    @Operation(summary = "Obtiene un token JWT con usuario y clave")
+    @SecurityRequirements
     @PostMapping("/login")
     public TokenResponse login(@Valid @RequestBody LoginRequest request) {
         Authentication autenticacion = authenticationManager.authenticate(
@@ -38,6 +45,7 @@ public class AuthController {
         return jwtService.generarToken(autenticacion);
     }
 
+    @Operation(summary = "Devuelve el usuario y los permisos del token")
     @GetMapping("/me")
     public Map<String, Object> me(@AuthenticationPrincipal Jwt jwt) {
         return Map.of("usuario", jwt.getSubject(), "permisos", jwt.getClaimAsString("scope"));

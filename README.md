@@ -2,7 +2,7 @@
 
 Proyecto base de Spring Boot para empezar a desarrollar una API REST.
 
-Stack: Java 17, Spring Boot 3.5, Spring Security con JWT, Maven, JUnit 5.
+Stack: Java 17, Spring Boot 3.5, Spring Security con JWT, Swagger (springdoc-openapi), Maven, JUnit 5.
 
 ## Cómo ejecutarlo
 
@@ -29,6 +29,8 @@ En IntelliJ: clic derecho en `pom.xml` → *Add as Maven Project*, y ejecutar `B
 | GET | `/api/ping` | Comprueba que la API responde | No | 200 |
 | GET | `/actuator/health` | Estado de la aplicación | No | 200 |
 | GET | `/actuator/info` | Información de la aplicación | Sí | 200, 401 |
+| GET | `/swagger-ui.html` | Documentación interactiva (Swagger UI) | No | 200 |
+| GET | `/v3/api-docs` | Especificación OpenAPI en JSON | No | 200 |
 
 Cualquier endpoint nuevo exige token, salvo que se agregue a la lista pública en `SeguridadConfig`.
 
@@ -62,12 +64,24 @@ Variables de entorno para no usar los valores de desarrollo:
 | `APP_USUARIO` | `admin` |
 | `APP_CLAVE` | `admin123` |
 
+## Swagger
+
+Con la aplicación arriba, la documentación está en http://localhost:8080/swagger-ui.html.
+
+Para probar endpoints protegidos desde Swagger:
+
+1. Ejecutar `POST /api/auth/login` con `{"usuario":"admin","clave":"admin123"}` y copiar el `token`.
+2. Pulsar *Authorize* (arriba a la derecha), pegar el token sin el prefijo `Bearer` y confirmar.
+3. Las siguientes peticiones llevan la cabecera `Authorization` automáticamente.
+
+Los endpoints nuevos aparecen solos. Para describirlos se usan `@Tag` en el controlador y `@Operation` en cada método; los públicos se marcan con `@SecurityRequirements` vacío para que Swagger no muestre el candado. La configuración general está en `OpenApiConfig`.
+
 ## Estructura
 
 ```
 src/main/java/com/santander/base/
 ├── BaseApiApplication.java   Clase principal
-├── config/                   Seguridad y JWT (SeguridadConfig, SeguridadProperties)
+├── config/                   Seguridad, JWT y Swagger (SeguridadConfig, SeguridadProperties, OpenApiConfig)
 ├── controller/               Endpoints REST
 ├── service/                  Lógica de negocio
 ├── repository/               Acceso a datos
@@ -78,7 +92,8 @@ src/main/resources/
 └── application.yml           Configuración
 src/test/java/com/santander/base/
 ├── BaseApiApplicationTests.java     Arranque del contexto y /api/ping
-└── AuthControllerTest.java          Flujo completo: login real y uso del token
+├── AuthControllerTest.java          Flujo completo: login real y uso del token
+└── OpenApiTest.java                 Swagger UI y /v3/api-docs públicos
 ```
 
 ## Manejo de errores
@@ -110,6 +125,7 @@ src/test/java/com/santander/base/
 | `spring-boot-starter-actuator` | Endpoints de salud y monitoreo |
 | `spring-boot-starter-security` | Autenticación y autorización |
 | `spring-boot-starter-oauth2-resource-server` | Firma y validación de tokens JWT (Nimbus) |
+| `springdoc-openapi-starter-webmvc-ui` | Especificación OpenAPI y Swagger UI |
 | `spring-boot-devtools` | Reinicio automático en desarrollo |
 | `spring-boot-starter-test` | JUnit 5, Mockito, MockMvc |
 | `spring-security-test` | Utilidades de prueba para Spring Security |
