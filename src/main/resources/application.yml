@@ -12,3 +12,11 @@ management:
     web:
       exposure:
         include: health,info
+
+app:
+  seguridad:
+    # Secreto HS256: mínimo 32 caracteres. En cualquier entorno real se define con JWT_SECRET
+    jwt-secreto: ${JWT_SECRET:clave-de-desarrollo-cambiar-en-produccion-1234567890}
+    jwt-expiracion: ${JWT_EXPIRACION:1h}
+    usuario: ${APP_USUARIO:admin}
+    clave: ${APP_CLAVE:admin123}
