@@ -2,17 +2,20 @@
 
 Proyecto base de Spring Boot para empezar a desarrollar una API REST.
 
-Stack: Java 17, Spring Boot 3.5, Spring Security con JWT, Swagger (springdoc-openapi), Maven, JUnit 5.
+Stack: Java 17, Spring Boot 3.5, PostgreSQL 16, Flyway, Spring Security con JWT, Swagger (springdoc-openapi), Maven, JUnit 5 + Testcontainers.
 
 ## Cómo ejecutarlo
 
-Requisitos: JDK 17 o superior y Maven.
+Requisitos: JDK 17 o superior, Maven y Docker.
 
 ```bash
-# Tests
+# 1. Base de datos (PostgreSQL en el puerto 5436)
+docker compose up -d
+
+# 2. Tests (levantan su propio PostgreSQL con Testcontainers)
 mvn clean test
 
-# Aplicación en http://localhost:8080
+# 3. Aplicación en http://localhost:8080
 mvn spring-boot:run
 ```
 
@@ -64,6 +67,23 @@ Variables de entorno para no usar los valores de desarrollo:
 | `APP_USUARIO` | `admin` |
 | `APP_CLAVE` | `admin123` |
 
+## Base de datos
+
+`docker-compose.yml` levanta PostgreSQL 16 en el puerto **5436** (base, usuario y clave: `base`), con los datos en el volumen `base-data`.
+
+```bash
+docker compose up -d                                   # arrancar
+docker compose down                                    # parar (conserva los datos)
+docker compose down -v                                 # parar y borrar los datos
+docker exec -it base-postgres psql -U base -d base     # consola SQL
+```
+
+El esquema lo maneja **Flyway**: al arrancar ejecuta los scripts de `src/main/resources/db/migration` que aún no se hayan aplicado y lo anota en la tabla `flyway_schema_history`. Hibernate está en `ddl-auto: validate`, así que no crea tablas: solo comprueba que las entidades coincidan con lo que dejó Flyway.
+
+Para agregar una tabla se crea un script nuevo con el siguiente número, por ejemplo `V1__crear_tabla_clientes.sql`, y su entidad en `model/`. Un script ya aplicado no se modifica: los cambios van en otro script (`V2__...`).
+
+Para usar otra base de datos se definen `DB_URL`, `DB_USER` y `DB_PASSWORD`.
+
 ## Swagger
 
 Con la aplicación arriba, la documentación está en http://localhost:8080/swagger-ui.html.
@@ -84,13 +104,15 @@ src/main/java/com/santander/base/
 ├── config/                   Seguridad, JWT y Swagger (SeguridadConfig, SeguridadProperties, OpenApiConfig)
 ├── controller/               Endpoints REST
 ├── service/                  Lógica de negocio
-├── repository/               Acceso a datos
+├── repository/               Repositorios Spring Data JPA
 ├── model/                    Entidades y enums
 ├── dto/                      Objetos de entrada y salida de la API
 └── exception/                Excepciones y GlobalExceptionHandler
 src/main/resources/
-└── application.yml           Configuración
+├── application.yml           Configuración
+└── db/migration/             Scripts de Flyway (V1__..., V2__...)
 src/test/java/com/santander/base/
+├── TestcontainersConfig.java        PostgreSQL desechable para los tests de integración
 ├── BaseApiApplicationTests.java     Arranque del contexto y /api/ping
 ├── AuthControllerTest.java          Flujo completo: login real y uso del token
 ├── OpenApiTest.java                 Swagger UI y /v3/api-docs públicos
@@ -108,19 +130,38 @@ mvn test -Dtest=JwtServiceTest            # una clase
 mvn test -Dtest='AuthController*'         # por patrón
 ```
 
+Los tests de integración (`@SpringBootTest`) importan `TestcontainersConfig`, que arranca un PostgreSQL desechable en Docker; no usan la base de `docker-compose`. Spring reutiliza el contexto entre clases, así que se levanta un solo contenedor por ejecución. Los unitarios y los `@WebMvcTest` no necesitan Docker.
+
 Hay tres niveles:
 
 | Nivel | Cómo | Ejemplos |
 |-------|------|----------|
 | Unitario | JUnit + AssertJ, sin levantar Spring | `JwtServiceTest`, `GlobalExceptionHandlerTest` |
 | Controlador | `@WebMvcTest` + `@MockitoBean`, con la seguridad real | `AuthControllerWebMvcTest`, `PingControllerTest` |
-| Integración | `@SpringBootTest` + MockMvc, aplicación completa | `AuthControllerTest`, `SeguridadConfigTest`, `OpenApiTest` |
+| Integración | `@SpringBootTest` + MockMvc + Testcontainers, aplicación completa | `AuthControllerTest`, `SeguridadConfigTest`, `OpenApiTest` |
 
 Los nombres siguen el formato `metodo_caso_resultado`, por ejemplo `login_claveIncorrecta_responde401`. Para simular un usuario autenticado en un `@WebMvcTest` sin generar un token real se usa `jwt()` de `spring-security-test`:
 
 ```java
 mockMvc.perform(get("/api/auth/me").with(jwt().jwt(t -> t.subject("ana"))))
 ```
+
+### Docker con Colima
+
+Testcontainers busca Docker en `/var/run/docker.sock`. Con Colima el socket está en otro lugar y los tests fallan con `Could not find a valid Docker environment`. Se soluciona una vez por máquina en `~/.testcontainers.properties`:
+
+```properties
+docker.host=unix:///Users/<usuario>/.colima/default/docker.sock
+```
+
+o con variables de entorno:
+
+```bash
+export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock"
+export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
+```
+
+El `pom.xml` fija Testcontainers en 1.21.4 porque la 1.21.3 que trae Spring Boot 3.5.6 no funciona con Docker 29 (`client version 1.32 is too old`).
 
 ## Manejo de errores
 
@@ -148,6 +189,9 @@ mockMvc.perform(get("/api/auth/me").with(jwt().jwt(t -> t.subject("ana"))))
 |-------------|----------|
 | `spring-boot-starter-web` | API REST con Tomcat embebido |
 | `spring-boot-starter-validation` | Validación con `@Valid`, `@NotBlank`, etc. |
+| `spring-boot-starter-data-jpa` | JPA con Hibernate y repositorios Spring Data |
+| `flyway-core`, `flyway-database-postgresql` | Migraciones versionadas del esquema |
+| `postgresql` | Driver JDBC |
 | `spring-boot-starter-actuator` | Endpoints de salud y monitoreo |
 | `spring-boot-starter-security` | Autenticación y autorización |
 | `spring-boot-starter-oauth2-resource-server` | Firma y validación de tokens JWT (Nimbus) |
@@ -155,3 +199,4 @@ mockMvc.perform(get("/api/auth/me").with(jwt().jwt(t -> t.subject("ana"))))
 | `spring-boot-devtools` | Reinicio automático en desarrollo |
 | `spring-boot-starter-test` | JUnit 5, Mockito, MockMvc |
 | `spring-security-test` | Utilidades de prueba para Spring Security |
+| `spring-boot-testcontainers`, `testcontainers` (`postgresql`, `junit-jupiter`) | PostgreSQL en Docker para los tests de integración |
