@@ -93,7 +93,33 @@ src/main/resources/
 src/test/java/com/santander/base/
 ├── BaseApiApplicationTests.java     Arranque del contexto y /api/ping
 ├── AuthControllerTest.java          Flujo completo: login real y uso del token
-└── OpenApiTest.java                 Swagger UI y /v3/api-docs públicos
+├── OpenApiTest.java                 Swagger UI y /v3/api-docs públicos
+├── config/SeguridadConfigTest.java  Rutas públicas y tokens rechazados (expirado, otra firma, otro esquema)
+├── controller/                      @WebMvcTest con el servicio simulado (Mockito)
+├── exception/                       GlobalExceptionHandler sin Spring
+└── service/                         JwtService sin Spring
+```
+
+## Tests
+
+```bash
+mvn test                                  # todos (31)
+mvn test -Dtest=JwtServiceTest            # una clase
+mvn test -Dtest='AuthController*'         # por patrón
+```
+
+Hay tres niveles:
+
+| Nivel | Cómo | Ejemplos |
+|-------|------|----------|
+| Unitario | JUnit + AssertJ, sin levantar Spring | `JwtServiceTest`, `GlobalExceptionHandlerTest` |
+| Controlador | `@WebMvcTest` + `@MockitoBean`, con la seguridad real | `AuthControllerWebMvcTest`, `PingControllerTest` |
+| Integración | `@SpringBootTest` + MockMvc, aplicación completa | `AuthControllerTest`, `SeguridadConfigTest`, `OpenApiTest` |
+
+Los nombres siguen el formato `metodo_caso_resultado`, por ejemplo `login_claveIncorrecta_responde401`. Para simular un usuario autenticado en un `@WebMvcTest` sin generar un token real se usa `jwt()` de `spring-security-test`:
+
+```java
+mockMvc.perform(get("/api/auth/me").with(jwt().jwt(t -> t.subject("ana"))))
 ```
 
 ## Manejo de errores
